@@ -161,3 +161,8 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 .DS_Store
+.pretzel
+.virtual_documents
+01_Introduction_to_Python/.pretzel
+02_Python_Libraries_for_Data_Science/.ipynb_checkpoints
+myvenv/
