@@ -166,3 +166,4 @@ cython_debug/
 01_Introduction_to_Python/.pretzel
 02_Python_Libraries_for_Data_Science/.ipynb_checkpoints
 myvenv/
+assets/
