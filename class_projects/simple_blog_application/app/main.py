@@ -1,5 +1,5 @@
-from marshal import version
 from fastapi import FastAPI
+from .routers import root, payment, auth
 
 title = "Simple Blog Application"
 description = f"""
@@ -17,12 +17,6 @@ app = FastAPI(
     }
     )
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-
-
-
-
-
+app.include_router(root.router)
+app.include_router(auth.router)
+app.include_router(payment.router)
