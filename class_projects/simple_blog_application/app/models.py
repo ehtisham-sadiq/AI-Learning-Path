@@ -17,6 +17,7 @@ class User(Base, EntityBase):
     
     email = Column(String, nullable=False, unique=True)
     password = Column(String, nullable=False)
+    posts = relationship("Post", back_populates="owner")
     
 class Post(Base, EntityBase):
     __tablename__ = "posts"

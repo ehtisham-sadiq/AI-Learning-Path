@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import root, payment, auth
+from .routers import root, payment, auth, post, user, vote, db_route
 
 title = "Simple Blog Application"
 description = f"""
@@ -20,3 +20,8 @@ app = FastAPI(
 app.include_router(root.router)
 app.include_router(auth.router)
 app.include_router(payment.router)
+app.include_router(post.router)
+app.include_router(user.router)
+app.include_router(vote.router)
+app.include_router(db_route.router)
+
