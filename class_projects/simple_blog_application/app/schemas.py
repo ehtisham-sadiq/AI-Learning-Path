@@ -46,7 +46,7 @@ class Post(PostBase):
         orm_mode = True # here orm_mode is set to True to allow pydantic to use the model as a base for the schema
     
     
-class PostOut(Post): # used for returning details along with the number of votes
+class PostOut(BaseModel): # used for returning details along with the number of votes
     Post: Post
     votes: int
     
@@ -55,7 +55,7 @@ class PostOut(Post): # used for returning details along with the number of votes
     
 class Token(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str 
     
 class TokenData(BaseModel):
     id: str

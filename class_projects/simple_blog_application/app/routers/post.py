@@ -12,6 +12,8 @@ from typing import List, Optional
 from .. import schemas, models, utils, oauth2
 from ..database import get_db
 from ..models import Post, User
+from sqlalchemy import func
+
 
 
 router = APIRouter(
@@ -20,27 +22,9 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=List[schemas.PostOut])
-def get_posts(db: Session = Depends(get_db), limit: int = 10, skip: int = 0, search: Optional[str] = "",
-              current_user: User = Depends(oauth2.get_current_user)):
-    """
-    Retrieve a list of posts from the database.
-
-    This endpoint allows users to fetch posts with optional pagination and search functionality. 
-    It returns a list of posts along with the count of votes associated with each post.
-
-    Parameters:
-    - db (Session): The database session, automatically injected.
-    - limit (int): The maximum number of posts to return (default is 10).
-    - skip (int): The number of posts to skip for pagination (default is 0).
-    - search (Optional[str]): A search term to filter posts by title (default is an empty string).
-    - current_user (User): The currently authenticated user, automatically injected.
-
-    Returns:
-    - List[schemas.PostOut]: A list of posts, each including the post details and associated vote count.
-
-    Example:
-    GET /posts?limit=5&skip=0&search=example
-    """
+def get_posts(db: Session = Depends(get_db),
+              current_user: schemas.TokenData = Depends(oauth2.get_current_user),
+              limit: int = 10, skip: int = 0, search: Optional[str] = ""):
     results = db.query(models.Post, func.count(models.Vote.post_id).label("votes")) \
         .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True) \
         .group_by(models.Post.id) \
@@ -48,37 +32,80 @@ def get_posts(db: Session = Depends(get_db), limit: int = 10, skip: int = 0, sea
         .offset(skip) \
         .limit(limit) \
         .all()
-    return results
+    
+    # Convert results to list of PostOut schema
+    posts = []
+    for post, votes in results:
+        # Convert owner to dictionary
+        owner = {
+            "id": post.owner.id,
+            "email": post.owner.email,
+            "created_at": post.owner.created_at
+        }
+        
+        # Create the Post schema
+        post_schema = schemas.Post(
+            id=post.id,
+            title=post.title,
+            content=post.content,
+            published=post.published,
+            created_at=post.created_at,
+            owner_id=post.owner_id,
+            owner=owner
+        )
+        
+        # Create the PostOut schema
+        post_data = schemas.PostOut(
+            Post=post_schema,
+            votes=votes
+        )
+        
+        posts.append(post_data)
+    
+    return posts
 
 @router.get("/{post_id}", response_model=schemas.PostOut)
-def get_post(db: Session = Depends(get_db), post_id: int = Path(..., ge=1), current_user: User = Depends(oauth2.get_current_user)):
-    """
-    Retrieve a single post by its ID from the database.
-
-    This endpoint allows users to fetch a specific post along with the count of votes associated with it. 
-    If the post does not exist, a 404 error is returned.
-
-    Parameters:
-    - db (Session): The database session, automatically injected.
-    - post_id (int): The ID of the post to retrieve (must be greater than or equal to 1).
-    - current_user (User): The currently authenticated user, automatically injected.
-
-    Returns:
-    - schemas.PostOut: The post details along with the associated vote count.
-
-    Raises:
-    - HTTPException: If the post with the specified ID is not found, a 404 error is raised.
-
-    Example:
-    GET /posts/1
-    """
+def get_post(db: Session = Depends(get_db), 
+             post_id: int = Path(..., ge=1), 
+             current_user: schemas.TokenData = Depends(oauth2.get_current_user)):
     post = db.query(models.Post, func.count(models.Vote.post_id).label("votes")) \
         .join(models.Vote, models.Vote.post_id == models.Post.id, isouter=True) \
         .group_by(models.Post.id) \
         .filter(models.Post.id == post_id) \
         .first()
-    check_if_exists(post, post_id)
-    return post
+    
+    if not post:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Post with id {post_id} was not found"
+        )
+    
+    # Convert owner to dictionary
+    owner = {
+        "id": post.Post.owner.id,
+        "email": post.Post.owner.email,
+        "created_at": post.Post.owner.created_at
+    }
+    
+    # Create the Post schema
+    post_schema = schemas.Post(
+        id=post.Post.id,
+        title=post.Post.title,
+        content=post.Post.content,
+        published=post.Post.published,
+        created_at=post.Post.created_at,
+        owner_id=post.Post.owner_id,
+        owner=owner
+    )
+    
+    # Create and return the PostOut schema
+    post_data = schemas.PostOut(
+        Post=post_schema,
+        votes=post.votes
+    )
+    
+    return post_data
+
 
 
 
@@ -154,7 +181,7 @@ def update_post(db: Session = Depends(get_db), post_id: int = Path(..., ge=1), p
     check_if_exists(found_post, post_id)
     if found_post.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to perform this action")
-    post_query.update(post.dict(), synchronize_session=False)
+    post_query.update(post.model_dump(), synchronize_session=False)
     db.commit()
     return post_query.first()
 
